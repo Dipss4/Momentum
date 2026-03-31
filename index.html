@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Momentum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08090d;
+  --surface: #0f1117;
+  --surface2: #161820;
+  --border: rgba(255,255,255,0.06);
+  --border-hover: rgba(255,255,255,0.14);
+  --text: #eeeef2;
+  --muted: #6b6d7a;
+  --accent: #7af7c7;
+  --accent2: #4f9eff;
+  --accent3: #f7a27a;
+  --top: #f7c27a;
+  --score-hi: #7af7c7;
+  --score-mid: #f7e07a;
+  --score-lo: #f77a7a;
+  --sidebar-w: 200px;
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --radius: 14px;
+  --transition: 0.28s cubic-bezier(0.4,0,0.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  overflow-x: hidden;
+}
+
+/* ---- Noise overlay ---- */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.6;
+}
+
+/* ---- Glow blobs ---- */
+.blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.18;
+}
+.blob-1 { width: 500px; height: 500px; background: #4f9eff; top: -180px; left: -120px; }
+.blob-2 { width: 400px; height: 400px; background: #7af7c7; bottom: -120px; right: 60px; opacity: 0.1; }
+.blob-3 { width: 300px; height: 300px; background: #f7a27a; top: 40%; left: 40%; opacity: 0.08; }
+
+/* ---- Sidebar ---- */
+.sidebar {
+  width: var(--sidebar-w);
+  min-height: 100vh;
+  padding: 28px 16px;
+  border-right: 1px solid var(--border);
+  position: fixed;
+  top: 0; left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  background: rgba(8,9,13,0.7);
+  backdrop-filter: blur(20px);
+  z-index: 100;
+}
+
+.logo {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.logo-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: pulse 2.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50% { opacity:0.5; transform:scale(0.7); }
+}
+
+.nav-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 8px;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+}
+
+.menu button::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 2px; height: 60%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: transform 0.2s;
+}
+
+.menu button.active, .menu button:hover {
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+}
+.menu button.active { color: var(--accent); }
+.menu button.active::before { transform: translateY(-50%) scaleY(1); }
+
+.menu-icon { font-size: 0.85rem; opacity: 0.7; }
+
+.sidebar-footer {
+  margin-top: auto;
+  font-size: 0.72rem;
+  color: var(--muted);
+  padding: 0 8px;
+  line-height: 1.6;
+}
+
+/* ---- Main ---- */
+main {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  padding: 32px 36px;
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+/* ---- Topbar ---- */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 36px;
+}
+
+.topbar-left h1 {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--text) 0%, var(--muted) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.topbar-left .subtitle {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-weight: 300;
+  letter-spacing: 0.01em;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 100px;
+  border: 1px solid rgba(122,247,199,0.2);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.live-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.theme-btn {
+  padding: 7px 14px;
+  border: 1px solid var(--border-hover);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.theme-btn:hover { color: var(--text); border-color: var(--border-hover); }
+
+/* ---- Hero ---- */
+#hero { margin-bottom: 28px; }
+
+.hero-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 36px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 20px;
+  transition: border-color var(--transition);
+  animation: fadeUp 0.5s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(16px); }
+  to { opacity:1; transform: translateY(0); }
+}
+
+.hero-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+  opacity: 0.6;
+}
+
+.hero-card:hover { border-color: var(--border-hover); }
+
+.hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.hero-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 3px 8px;
+  background: rgba(122,247,199,0.08);
+  border: 1px solid rgba(122,247,199,0.15);
+  border-radius: 4px;
+}
+
+.top-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--top);
+  padding: 3px 8px;
+  background: rgba(247,194,122,0.08);
+  border: 1px solid rgba(247,194,122,0.2);
+  border-radius: 4px;
+}
+
+.hero-num {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+.hero-card h2 {
+  font-family: var(--font-display);
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+.hero-card .summary {
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 560px;
+  font-weight: 300;
+}
+
+.hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.source-chip {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 4px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+}
+
+.time-chip {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.hero-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: var(--accent);
+  color: #08090d;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.82rem;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: var(--transition);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.hero-cta:hover { background: #a0f9d9; transform: translateY(-1px); }
+.hero-cta svg { transition: transform 0.2s; }
+.hero-cta:hover svg { transform: translateX(2px); }
+
+/* ---- Section header ---- */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title::before {
+  content:'';
+  display:inline-block;
+  width: 16px; height: 1px;
+  background: var(--muted);
+}
+.section-count {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+/* ---- Grid ---- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+}
+
+/* ---- Card ---- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+  position: relative;
+  overflow: hidden;
+  animation: fadeUp 0.5s ease both;
+}
+
+.card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.card h3 {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  color: var(--text);
+  flex: 1;
+}
+
+.card p {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.65;
+  font-weight: 300;
+  flex: 1;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+
+.read-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent2);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: gap 0.2s;
+}
+.read-link:hover { gap: 7px; }
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.score-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 100px;
+  letter-spacing: 0.03em;
+}
+
+.card-time {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+/* ---- Empty ---- */
+.empty {
+  grid-column: 1/-1;
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* ---- Loading ---- */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ---- Light theme ---- */
+body.light {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface2: #f0f0f3;
+  --border: rgba(0,0,0,0.07);
+  --border-hover: rgba(0,0,0,0.15);
+  --text: #0d0d12;
+  --muted: #777;
+}
+body.light .blob-1 { opacity: 0.07; }
+body.light .blob-2 { opacity: 0.05; }
+body.light .blob-3 { opacity: 0.04; }
+body.light .sidebar { background: rgba(245,245,247,0.8); }
+body.light .topbar-left h1 { background: linear-gradient(135deg, #0d0d12, #555); -webkit-background-clip:text; background-clip:text; }
+
+/* ---- Responsive ---- */
+@media(max-width:860px) {
+  :root { --sidebar-w: 0px; }
+  .sidebar { display: none; }
+  main { margin-left: 0; padding: 20px; }
+  .hero-card { grid-template-columns: 1fr; }
+  .hero-cta { width: fit-content; }
+}
+</style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<div class="sidebar">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    Momentum
+  </div>
+
+  <div>
+    <div class="nav-label">Timeline</div>
+    <div class="menu">
+      <button data-period="today" class="active">
+        <span class="menu-icon">◈</span> Today
+      </button>
+      <button data-period="week">
+        <span class="menu-icon">◈</span> This Week
+      </button>
+      <button data-period="month">
+        <span class="menu-icon">◈</span> This Month
+      </button>
+      <button data-period="always">
+        <span class="menu-icon">◈</span> All Time
+      </button>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    AI Intelligence<br>Curated feed
+  </div>
+</div>
+
+<main>
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>AI Feed</h1>
+      <div class="subtitle">Curated intelligence from the frontier</div>
+    </div>
+    <div class="topbar-right">
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        Live
+      </div>
+      <button class="theme-btn" onclick="toggleTheme()">☀ Theme</button>
+    </div>
+  </div>
+
+  <div id="hero"></div>
+
+  <div class="section-header">
+    <div class="section-title">Latest Stories</div>
+    <div class="section-count" id="story-count"></div>
+  </div>
+
+  <div id="news"></div>
+</main>
+
+<script>
+const STRATEGIC = ['openai.com','deepmind.com','anthropic.com'];
+let currentPeriod = 'today';
+let newsData = {};
+
+// ---- Demo data so the UI renders beautifully ----
+const DEMO = {
+  today: [
+    { title:"OpenAI Launches GPT-5 Turbo With Extended Context", summary:"A new flagship model promises 256k context window and significantly improved reasoning on multi-step tasks, including mathematical proofs and complex code generation.", link:"#", site:"openai.com", date: new Date(Date.now()-3600*1000*2).toISOString(), score:0.92 },
+    { title:"Google DeepMind Achieves Protein Folding Milestone", summary:"AlphaFold 3 now predicts interactions between proteins and small molecules with near-experimental accuracy, accelerating drug discovery pipelines.", link:"#", site:"deepmind.com", date: new Date(Date.now()-3600*1000*3).toISOString(), score:0.88 },
+    { title:"Anthropic Publishes New Constitutional AI Research", summary:"Detailed analysis of how RLHF and Constitutional AI methods interact when scaling model sizes beyond 70B parameters.", link:"#", site:"anthropic.com", date: new Date(Date.now()-3600*1000*5).toISOString(), score:0.85 },
+    { title:"Meta Open-Sources Multimodal Llama 4", summary:"New release supports vision, audio, and text natively. Benchmark results show competitive performance with proprietary models on several key tasks.", link:"#", site:"ai.meta.com", date: new Date(Date.now()-3600*1000*6).toISOString(), score:0.81 },
+    { title:"EU AI Act Enters Final Enforcement Phase", summary:"Regulators begin auditing high-risk AI deployments across financial services and healthcare sectors, with fines up to 6% of global revenue.", link:"#", site:"ec.europa.eu", date: new Date(Date.now()-3600*1000*7).toISOString(), score:0.73 },
+    { title:"Mistral Releases Efficient 7B Reasoning Model", summary:"New architecture achieves 90% of GPT-4 benchmark scores at a fraction of the compute cost, targeting edge deployment scenarios.", link:"#", site:"mistral.ai", date: new Date(Date.now()-3600*1000*8).toISOString(), score:0.67 },
+    { title:"AI Coding Tools Cut Developer Time by 45%", summary:"A large-scale study across 12,000 developers shows significant productivity gains, with the biggest improvements in boilerplate and test generation.", link:"#", site:"github.blog", date: new Date(Date.now()-3600*1000*10).toISOString(), score:0.61 },
+    { title:"Stanford HAI Report: AI Governance Gaps Widening", summary:"Annual report highlights growing disparity between AI capability advancement and policy frameworks designed to manage associated risks.", link:"#", site:"hai.stanford.edu", date: new Date(Date.now()-3600*1000*12).toISOString(), score:0.55 },
+    { title:"Robotics Startup Raises $300M for Embodied AI", summary:"Physical AI systems that can navigate unstructured environments attract significant venture capital as the sector matures beyond proof-of-concept.", link:"#", site:"techcrunch.com", date: new Date(Date.now()-3600*1000*14).toISOString(), score:0.48 },
+  ]
+};
+DEMO.week = DEMO.today;
+DEMO.month = DEMO.today;
+DEMO.always = DEMO.today;
+
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
+}
+if(localStorage.getItem('theme') === 'light') document.body.classList.add('light');
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = (Date.now() - new Date(dateStr)) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  return Math.floor(diff/86400) + 'd ago';
+}
+
+function scoreColor(s) {
+  if (s >= 0.75) return { bg:'rgba(122,247,199,0.12)', color:'var(--score-hi)' };
+  if (s >= 0.5) return { bg:'rgba(247,224,122,0.12)', color:'var(--score-mid)' };
+  return { bg:'rgba(247,122,122,0.12)', color:'var(--score-lo)' };
+}
+
+function createCard(p, i) {
+  const sc = scoreColor(p.score);
+  const isTop = STRATEGIC.includes(p.site);
+  const delay = (i * 60) + 'ms';
+  return `
+  <div class="card" style="animation-delay:${delay}">
+    <div class="card-top">
+      <h3>${p.title}</h3>
+      ${isTop ? '<div class="top-label">TOP</div>' : ''}
+    </div>
+    <p>${p.summary || ''}</p>
+    <div class="card-footer">
+      <a class="read-link" href="${p.link}" target="_blank">
+        Read more
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5h6M5 2l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <div class="card-meta">
+        <div class="source-chip">${p.site}</div>
+        <div class="card-time">${timeAgo(p.date)}</div>
+        <div class="score-pill" style="background:${sc.bg};color:${sc.color}">${p.score.toFixed(2)}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderPeriod(period) {
+  currentPeriod = period;
+  document.querySelectorAll('.menu button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.period === period);
+  });
+
+  const posts = newsData[period] || [];
+  if (!posts.length) {
+    document.getElementById('hero').innerHTML = '';
+    document.getElementById('news').innerHTML = '<div class="grid"><div class="empty">No stories found for this period.</div></div>';
+    document.getElementById('story-count').textContent = '';
+    return;
+  }
+
+  const top = posts[0];
+  const isTop = STRATEGIC.includes(top.site);
+
+  document.getElementById('hero').innerHTML = `
+  <div class="hero-card">
+    <div>
+      <div class="hero-eyebrow">
+        <div class="hero-label">Featured</div>
+        ${isTop ? '<div class="top-label">TOP SOURCE</div>' : ''}
+        <span class="hero-num">#01</span>
+      </div>
+      <h2>${top.title}</h2>
+      <p class="summary">${top.summary || ''}</p>
+      <div class="hero-meta">
+        <div class="source-chip">${top.site}</div>
+        <span class="time-chip">${timeAgo(top.date)}</span>
+        ${(() => { const sc = scoreColor(top.score); return `<div class="score-pill" style="background:${sc.bg};color:${sc.color}">${top.score.toFixed(2)}</div>`; })()}
+      </div>
+    </div>
+    <a class="hero-cta" href="${top.link}" target="_blank">
+      Read Full Story
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </div>`;
+
+  const rest = posts.slice(1);
+  document.getElementById('story-count').textContent = `${rest.length} stories`;
+  const cards = rest.map((p, i) => createCard(p, i)).join('');
+  document.getElementById('news').innerHTML = `<div class="grid">${cards}</div>`;
+}
+
+document.querySelectorAll('.menu button').forEach(btn => {
+  btn.addEventListener('click', () => renderPeriod(btn.dataset.period));
+});
+
+async function loadNews() {
+  try {
+    const res = await fetch('http://127.0.0.1:8000/news');
+    newsData = await res.json();
+  } catch (e) {
+    // Fallback to demo data for preview
+    newsData = DEMO;
+  }
+  renderPeriod(currentPeriod);
+}
+
+loadNews();
+</script>
+</body>
+</html>
